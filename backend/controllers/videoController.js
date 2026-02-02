@@ -26,7 +26,12 @@ const getVideoInfo = async (req, res, next) => {
             noWarnings: true,
             noCallHome: true,
             preferFreeFormats: true,
-            youtubeSkipDashManifest: true
+            youtubeSkipDashManifest: true,
+            // Stealth options to avoid 403s
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            referer: 'https://www.youtube.com/',
+            noPlaylist: true,
+            geoBypass: true
         });
 
         const videoData = {
