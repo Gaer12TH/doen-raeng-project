@@ -2,8 +2,8 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Install Python3 (Required for yt-dlp)
-RUN apk add --no-cache python3 py3-pip
+# Install Python3 and ffmpeg (Required for yt-dlp)
+RUN apk add --no-cache python3 py3-pip ffmpeg
 
 # Copy package files first for caching
 COPY package*.json ./
