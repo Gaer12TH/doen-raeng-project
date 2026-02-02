@@ -36,21 +36,29 @@ const STRATEGIES = [
         ]
     },
     {
-        name: 'iOS Client (Robust)',
+        name: 'Android Creator (Robust)',
         condition: () => true,
-        args: ['--extractor-args', 'youtube:player_client=ios', '--force-ipv4']
+        args: ['--extractor-args', 'youtube:player_client=android_creator', '--force-ipv4']
     },
     {
-        name: 'Android Client',
+        name: 'iOS Creator (Backup)',
         condition: () => true,
-        args: ['--extractor-args', 'youtube:player_client=android', '--force-ipv4']
+        args: ['--extractor-args', 'youtube:player_client=ios_creator', '--force-ipv4']
     },
     {
-        name: 'Smart TV Client',
+        name: 'Mobile Web (MWeb)',
+        condition: () => true,
+        args: ['--extractor-args', 'youtube:player_client=mweb', '--force-ipv4']
+    },
+    {
+        name: 'TV Client (Last Resort)',
         condition: () => true,
         args: ['--extractor-args', 'youtube:player_client=tv', '--force-ipv4']
     }
 ];
+
+// Helper: Sleep
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // --- Core Executor ---
 const executeYtDlp = (url, strategyArgs) => {
@@ -95,6 +103,7 @@ const resolveVideoData = async (url) => {
         if (!strategy.condition()) continue;
 
         console.log(`Trying strategy: ${strategy.name}...`);
+
         try {
             const info = await executeYtDlp(url, strategy.args);
             console.log(`✅ Success with ${strategy.name}`);
@@ -103,7 +112,10 @@ const resolveVideoData = async (url) => {
             console.warn(`❌ Strategy ${strategy.name} failed`);
             console.warn(`Reason: ${error.message.split('\n')[0]}`); // Log only first line of error
             lastError = error;
-            // Continue to next strategy...
+
+            // Wait before next retry to avoid hammering
+            console.log('Waiting 2s before searching next strategy...');
+            await delay(2000);
         }
     }
     throw lastError || new Error('All strategies failed');
