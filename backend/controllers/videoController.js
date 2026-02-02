@@ -31,29 +31,28 @@ const STRATEGIES = [
         condition: () => fs.existsSync(cookiePath),
         args: [
             '--cookies', cookiePath,
-            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            '--force-ipv4'
+            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         ]
     },
     {
         name: 'Android Creator (Robust)',
         condition: () => true,
-        args: ['--extractor-args', 'youtube:player_client=android_creator', '--force-ipv4']
+        args: ['--extractor-args', 'youtube:player_client=android_creator']
     },
     {
         name: 'iOS Creator (Backup)',
         condition: () => true,
-        args: ['--extractor-args', 'youtube:player_client=ios_creator', '--force-ipv4']
+        args: ['--extractor-args', 'youtube:player_client=ios_creator']
     },
     {
         name: 'Mobile Web (MWeb)',
         condition: () => true,
-        args: ['--extractor-args', 'youtube:player_client=mweb', '--force-ipv4']
+        args: ['--extractor-args', 'youtube:player_client=mweb']
     },
     {
         name: 'TV Client (Last Resort)',
         condition: () => true,
-        args: ['--extractor-args', 'youtube:player_client=tv', '--force-ipv4']
+        args: ['--extractor-args', 'youtube:player_client=tv']
     }
 ];
 
