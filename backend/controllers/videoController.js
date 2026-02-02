@@ -1,38 +1,69 @@
-const ytDlp = require('yt-dlp-exec');
+const { spawn } = require('child_process');
 const NodeCache = require('node-cache');
 const path = require('path');
-const fs = require('fs');
 
 // Cache video metadata for 1 hour
 const videoCache = new NodeCache({ stdTTL: 3600 });
 
+const runYtDlp = (url, args = []) => {
+    return new Promise((resolve, reject) => {
+        // Basic args to output json and avoid errors
+        const defaultArgs = [
+            url,
+            '--dump-json',
+            '--no-warnings',
+            '--no-call-home',
+            '--prefer-free-formats',
+            '--skip-download',
+            // Stealth
+            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            '--referer', 'https://www.youtube.com/',
+            '--geo-bypass'
+        ];
+
+        const process = spawn('yt-dlp', [...defaultArgs, ...args]);
+
+        let stdoutData = '';
+        let stderrData = '';
+
+        process.stdout.on('data', (data) => {
+            stdoutData += data.toString();
+        });
+
+        process.stderr.on('data', (data) => {
+            stderrData += data.toString();
+        });
+
+        process.on('close', (code) => {
+            if (code === 0) {
+                try {
+                    resolve(JSON.parse(stdoutData));
+                } catch (e) {
+                    reject(new Error('Failed to parse JSON: ' + stdoutData));
+                }
+            } else {
+                reject(new Error(stderrData || 'Unknown yt-dlp error'));
+            }
+        });
+
+        process.on('error', (err) => {
+            reject(err);
+        });
+    });
+};
+
 const getVideoInfo = async (req, res, next) => {
     try {
         const { url } = req.body;
-        if (!url) {
-            return res.status(400).json({ error: 'URL is required' });
-        }
+        if (!url) return res.status(400).json({ error: 'URL is required' });
 
         // Check Cache
         const cachedData = videoCache.get(url);
         if (cachedData) {
-            console.log('Serving from cache:', url);
             return res.json(cachedData);
         }
 
-        // Fetch info using yt-dlp (dump-json)
-        const output = await ytDlp(url, {
-            dumpJson: true,
-            noWarnings: true,
-            noCallHome: true,
-            preferFreeFormats: true,
-            youtubeSkipDashManifest: true,
-            // Stealth options to avoid 403s
-            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-            referer: 'https://www.youtube.com/',
-            noPlaylist: true,
-            geoBypass: true
-        });
+        const output = await runYtDlp(url);
 
         const videoData = {
             title: output.title,
@@ -42,21 +73,11 @@ const getVideoInfo = async (req, res, next) => {
             formats: ['mp3', 'mp4']
         };
 
-        // Save to Cache
         videoCache.set(url, videoData);
-
         res.json(videoData);
     } catch (error) {
         console.error('❌ Info Error:', error.message);
-        if (error.stderr) console.error('🔴 yt-dlp stderr:', error.stderr);
-
-        // Send detailed error to frontend for debugging (temporary)
-        res.status(500).json({
-            error: 'Backend Error',
-            details: error.message,
-            stderr: error.stderr || 'No stderr'
-        });
-        // next(new Error('Failed to fetch video info.'));
+        res.status(500).json({ error: 'Backend Error', details: error.message });
     }
 };
 
@@ -65,35 +86,39 @@ const downloadVideo = async (req, res, next) => {
         const { url, format } = req.query;
         if (!url) return res.status(400).send('Invalid URL');
 
-        // Get basic info for filename
-        const output = await ytDlp(url, { dumpJson: true, noWarnings: true });
-        const title = (output.title || 'video').replace(/[^\w\s-]/g, '');
+        // Get title first
+        let title = 'video';
+        try {
+            const info = await runYtDlp(url);
+            title = (info.title || 'video').replace(/[^\w\s-]/g, '');
+        } catch (e) {
+            console.error('Title fetch failed, using default');
+        }
 
         res.header('Content-Disposition', `attachment; filename="${title}.${format}"`);
 
-        // Stream the content directly to response
+        const args = [
+            url,
+            '--output', '-', // Stdout
+            '--no-warnings',
+            '--no-call-home',
+            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        ];
+
         if (format === 'mp3') {
-            // Audio Stream
-            const process = ytDlp.exec(url, {
-                extractAudio: true,
-                audioFormat: 'mp3',
-                output: '-' // Standard Output
-            });
-            process.stdout.pipe(res);
+            args.push('--extract-audio', '--audio-format', 'mp3');
         } else {
-            // Video Stream (Best MP4)
-            const process = ytDlp.exec(url, {
-                format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-                output: '-'
-            });
-            process.stdout.pipe(res);
+            args.push('--format', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best');
         }
+
+        const process = spawn('yt-dlp', args);
+        process.stdout.pipe(res);
+
+        process.stderr.on('data', d => console.error('DL stderr:', d.toString()));
 
     } catch (error) {
         console.error('Download Error:', error);
-        if (!res.headersSent) {
-            res.status(500).send('Download Failed');
-        }
+        if (!res.headersSent) res.status(500).send('Download Failed');
     }
 };
 
