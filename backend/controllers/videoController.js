@@ -1,8 +1,18 @@
-const ytdl = require('ytdl-core');
+const ytdl = require('@distube/ytdl-core');
 const NodeCache = require('node-cache');
 
 // Cache video metadata for 1 hour to reduce YouTube API calls
 const videoCache = new NodeCache({ stdTTL: 3600 });
+
+// Add basic agent options to prevent 403s
+const agentOptions = {
+    requestOptions: {
+        headers: {
+            // Common User-Agent to mimic a real browser
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        }
+    }
+};
 
 const getVideoInfo = async (req, res, next) => {
     try {
@@ -18,7 +28,7 @@ const getVideoInfo = async (req, res, next) => {
             return res.json(cachedData);
         }
 
-        const info = await ytdl.getInfo(url);
+        const info = await ytdl.getInfo(url, agentOptions);
         const format = ytdl.chooseFormat(info.formats, { quality: 'highest' });
 
         // Extract relevant info
@@ -35,7 +45,8 @@ const getVideoInfo = async (req, res, next) => {
 
         res.json(videoData);
     } catch (error) {
-        next(error);
+        console.error('Info Error:', error);
+        next(new Error(`YouTube Error: ${error.message}`));
     }
 };
 
@@ -46,22 +57,22 @@ const downloadVideo = async (req, res, next) => {
             return res.status(400).send('Invalid URL');
         }
 
-        const info = await ytdl.getInfo(url);
+        const info = await ytdl.getInfo(url, agentOptions);
         const title = info.videoDetails.title.replace(/[^\w\s-]/g, ''); // Sanitize filename
 
         if (format === 'mp3') {
             res.header('Content-Disposition', `attachment; filename="${title}.mp3"`);
-            ytdl(url, { quality: 'highestaudio', filter: 'audioonly' }).pipe(res);
+            ytdl(url, { ...agentOptions, quality: 'highestaudio', filter: 'audioonly' }).pipe(res);
         } else {
             // MP4 Default
             res.header('Content-Disposition', `attachment; filename="${title}.mp4"`);
-            ytdl(url, { quality: 'highest', filter: 'audioandvideo' }).pipe(res);
+            ytdl(url, { ...agentOptions, quality: 'highest', filter: 'audioandvideo' }).pipe(res);
         }
     } catch (error) {
         console.error('Download Error:', error);
         // If headers sent, end stream, else send json
         if (!res.headersSent) {
-            res.status(500).send('Download Failed');
+            res.status(500).send('Download Failed: ' + error.message);
         } else {
             res.end();
         }
