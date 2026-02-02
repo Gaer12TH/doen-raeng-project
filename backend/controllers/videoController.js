@@ -24,35 +24,44 @@ const checkYtDlpVersion = () => {
 };
 checkYtDlpVersion();
 
-// --- Strategies Definition ---
+// --- Stratฤด ๆegies Definition ---
 const STRATEGIES = [
     {
-        name: 'Cookies (Verified + UA Spoof)',
+        name: 'Cookies (Verified + Headers)',
         condition: () => fs.existsSync(cookiePath),
         args: [
             '--cookies', cookiePath,
-            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            '--referer', 'https://www.youtube.com/',
+            '--add-header', 'Accept-Language:en-US,en;q=0.9',
+            '--add-header', 'Sec-Fetch-Mode:navigate',
+            '--add-header', 'Sec-Fetch-Site:same-origin',
+            '--add-header', 'Sec-Fetch-Dest:document'
         ]
     },
     {
         name: 'Android Creator (Robust)',
         condition: () => true,
-        args: ['--extractor-args', 'youtube:player_client=android_creator']
+        args: [
+            '--extractor-args', 'youtube:player_client=android_creator',
+            '--referer', 'https://www.youtube.com/'
+        ]
     },
     {
         name: 'iOS Creator (Backup)',
         condition: () => true,
-        args: ['--extractor-args', 'youtube:player_client=ios_creator']
-    },
-    {
-        name: 'Mobile Web (MWeb)',
-        condition: () => true,
-        args: ['--extractor-args', 'youtube:player_client=mweb']
+        args: [
+            '--extractor-args', 'youtube:player_client=ios_creator',
+            '--referer', 'https://www.youtube.com/'
+        ]
     },
     {
         name: 'TV Client (Last Resort)',
         condition: () => true,
-        args: ['--extractor-args', 'youtube:player_client=tv']
+        args: [
+            '--extractor-args', 'youtube:player_client=tv',
+            '--referer', 'https://www.youtube.com/'
+        ]
     }
 ];
 
