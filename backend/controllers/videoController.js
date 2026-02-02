@@ -1,24 +1,44 @@
 const { spawn } = require('child_process');
 const NodeCache = require('node-cache');
 const path = require('path');
+const fs = require('fs');
 
 // Cache video metadata for 1 hour
 const videoCache = new NodeCache({ stdTTL: 3600 });
 
+// Handle Cookies (The Nuclear Option ☢️)
+const cookiePath = path.join(__dirname, 'cookies.txt');
+if (process.env.YOUTUBE_COOKIES) {
+    try {
+        fs.writeFileSync(cookiePath, process.env.YOUTUBE_COOKIES);
+        console.log('✅ Cookies loaded from environment variable');
+    } catch (err) {
+        console.error('❌ Failed to write cookies:', err);
+    }
+}
+
 const runYtDlp = (url, args = []) => {
     return new Promise((resolve, reject) => {
-        // Basic args to output json and avoid errors
+        // Basic args
         const defaultArgs = [
             url,
             '--dump-json',
             '--no-warnings',
             '--prefer-free-formats',
             '--skip-download',
-            // Try iOS Client + IPv4 to bypass blocks
-            '--extractor-args', 'youtube:player_client=ios',
-            '--force-ipv4',
-            '--geo-bypass'
+            '--geo-bypass',
+            // Force IPv4
+            '--force-ipv4'
         ];
+
+        // Strategy 1: Use Cookies if available (Best)
+        if (fs.existsSync(cookiePath)) {
+            defaultArgs.push('--cookies', cookiePath);
+        }
+        // Strategy 2: Use Smart TV Client (Good for Server IPs)
+        else {
+            defaultArgs.push('--extractor-args', 'youtube:player_client=tv');
+        }
 
         const process = spawn('yt-dlp', [...defaultArgs, ...args]);
 
@@ -100,8 +120,14 @@ const downloadVideo = async (req, res, next) => {
             url,
             '--output', '-', // Stdout
             '--no-warnings',
-            '--extractor-args', 'youtube:player_client=android',
+            '--force-ipv4'
         ];
+
+        if (fs.existsSync(cookiePath)) {
+            args.push('--cookies', cookiePath);
+        } else {
+            args.push('--extractor-args', 'youtube:player_client=tv');
+        }
 
         if (format === 'mp3') {
             args.push('--extract-audio', '--audio-format', 'mp3');
