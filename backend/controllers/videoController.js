@@ -17,20 +17,36 @@ if (process.env.YOUTUBE_COOKIES) {
     }
 }
 
+// Log yt-dlp version on start
+const checkYtDlpVersion = () => {
+    const process = spawn('yt-dlp', ['--version']);
+    process.stdout.on('data', d => console.log('ℹ️ yt-dlp version:', d.toString().trim()));
+};
+checkYtDlpVersion();
+
 // --- Strategies Definition ---
 const STRATEGIES = [
     {
-        name: 'Cookies (Verified)',
+        name: 'Cookies (Verified + UA Spoof)',
         condition: () => fs.existsSync(cookiePath),
-        args: ['--cookies', cookiePath, '--force-ipv4']
+        args: [
+            '--cookies', cookiePath,
+            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            '--force-ipv4'
+        ]
     },
     {
-        name: 'Android Client (No Cookies)',
-        condition: () => true, // Always available
+        name: 'iOS Client (Robust)',
+        condition: () => true,
+        args: ['--extractor-args', 'youtube:player_client=ios', '--force-ipv4']
+    },
+    {
+        name: 'Android Client',
+        condition: () => true,
         args: ['--extractor-args', 'youtube:player_client=android', '--force-ipv4']
     },
     {
-        name: 'Smart TV Client (No Cookies)',
+        name: 'Smart TV Client',
         condition: () => true,
         args: ['--extractor-args', 'youtube:player_client=tv', '--force-ipv4']
     }
@@ -43,6 +59,7 @@ const executeYtDlp = (url, strategyArgs) => {
             url,
             '--dump-json',
             '--no-warnings',
+            '--no-cache-dir', // Important for avoiding ban cache
             '--skip-download',
             '--geo-bypass',
             ...strategyArgs
@@ -53,6 +70,7 @@ const executeYtDlp = (url, strategyArgs) => {
         let stderrData = '';
 
         process.stdout.on('data', d => stdoutData += d.toString());
+        // Capture stderr but don't fail immediately, some warnings are normal
         process.stderr.on('data', d => stderrData += d.toString());
 
         process.on('close', (code) => {
@@ -82,7 +100,8 @@ const resolveVideoData = async (url) => {
             console.log(`✅ Success with ${strategy.name}`);
             return { info, strategyArgs: strategy.args };
         } catch (error) {
-            console.warn(`❌ Strategy ${strategy.name} failed: ${error.message}`);
+            console.warn(`❌ Strategy ${strategy.name} failed`);
+            console.warn(`Reason: ${error.message.split('\n')[0]}`); // Log only first line of error
             lastError = error;
             // Continue to next strategy...
         }
@@ -136,7 +155,7 @@ const downloadVideo = async (req, res) => {
             workingStrategyArgs = strategyArgs;
         } catch (e) {
             console.error('❌ Pre-download resolve failed:', e.message);
-            // Fallback: Just try Android if resolve failed (unlikely to work but worth a shot)
+            // Default Fallback
             workingStrategyArgs = STRATEGIES[1].args;
         }
 
@@ -147,6 +166,7 @@ const downloadVideo = async (req, res) => {
             url,
             '--output', '-',
             '--no-warnings',
+            '--no-cache-dir',
             '--geo-bypass',
             ...workingStrategyArgs
         ];
@@ -154,7 +174,7 @@ const downloadVideo = async (req, res) => {
         if (format === 'mp3') {
             downloadArgs.push('--extract-audio', '--audio-format', 'mp3');
         } else {
-            // Flexible format selection to avoid "Format not available"
+            // Flexible format selection
             downloadArgs.push('--format', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best');
         }
 
