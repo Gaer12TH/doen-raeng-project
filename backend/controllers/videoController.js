@@ -47,8 +47,16 @@ const getVideoInfo = async (req, res, next) => {
 
         res.json(videoData);
     } catch (error) {
-        console.error('Info Error:', error);
-        next(new Error('Failed to fetch video info. It might be restricted or private.'));
+        console.error('❌ Info Error:', error.message);
+        if (error.stderr) console.error('🔴 yt-dlp stderr:', error.stderr);
+
+        // Send detailed error to frontend for debugging (temporary)
+        res.status(500).json({
+            error: 'Backend Error',
+            details: error.message,
+            stderr: error.stderr || 'No stderr'
+        });
+        // next(new Error('Failed to fetch video info.'));
     }
 };
 
