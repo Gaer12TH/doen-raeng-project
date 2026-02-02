@@ -7,7 +7,7 @@ const fs = require('fs');
 const videoCache = new NodeCache({ stdTTL: 3600 });
 
 // Handle Cookies (The Nuclear Option ☢️)
-const cookiePath = path.join(__dirname, 'cookies.txt');
+const cookiePath = path.join(__dirname, '../cookies.txt');
 if (process.env.YOUTUBE_COOKIES) {
     try {
         fs.writeFileSync(cookiePath, process.env.YOUTUBE_COOKIES);
