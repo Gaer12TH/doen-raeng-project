@@ -12,12 +12,10 @@ const runYtDlp = (url, args = []) => {
             url,
             '--dump-json',
             '--no-warnings',
-            '--no-call-home',
             '--prefer-free-formats',
             '--skip-download',
-            // Stealth
-            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-            '--referer', 'https://www.youtube.com/',
+            // Use Android Client to bypass "Sign in" errors
+            '--extractor-args', 'youtube:player_client=android',
             '--geo-bypass'
         ];
 
@@ -101,8 +99,7 @@ const downloadVideo = async (req, res, next) => {
             url,
             '--output', '-', // Stdout
             '--no-warnings',
-            '--no-call-home',
-            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            '--extractor-args', 'youtube:player_client=android',
         ];
 
         if (format === 'mp3') {
