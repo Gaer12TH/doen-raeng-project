@@ -24,7 +24,6 @@ const runYtDlp = (url, args = []) => {
             url,
             '--dump-json',
             '--no-warnings',
-            '--prefer-free-formats',
             '--skip-download',
             '--geo-bypass',
             // Force IPv4
