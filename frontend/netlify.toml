@@ -4,7 +4,7 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "http://localhost:3000/api/:splat" # Change this to your Railway URL in Production!
+  to = "https://doen-raeng-project.onrender.com/api/:splat"
   status = 200
   force = true
 
