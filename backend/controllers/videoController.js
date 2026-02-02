@@ -14,8 +14,9 @@ const runYtDlp = (url, args = []) => {
             '--no-warnings',
             '--prefer-free-formats',
             '--skip-download',
-            // Use Android Client to bypass "Sign in" errors
-            '--extractor-args', 'youtube:player_client=android',
+            // Try iOS Client + IPv4 to bypass blocks
+            '--extractor-args', 'youtube:player_client=ios',
+            '--force-ipv4',
             '--geo-bypass'
         ];
 
