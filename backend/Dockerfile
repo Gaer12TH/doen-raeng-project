@@ -2,6 +2,9 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# Install Python3 (Required for yt-dlp)
+RUN apk add --no-cache python3 py3-pip
+
 # Copy package files first for caching
 COPY package*.json ./
 
@@ -11,7 +14,7 @@ RUN npm install --production
 # Copy app source
 COPY . .
 
-# Expose port (Railway will override this but good for docs)
+# Expose port
 EXPOSE 3000
 
 # Start server

@@ -1,24 +1,16 @@
-const ytdl = require('@distube/ytdl-core');
+const ytDlp = require('yt-dlp-exec');
 const NodeCache = require('node-cache');
+const path = require('path');
+const fs = require('fs');
 
-// Cache video metadata for 1 hour to reduce YouTube API calls
+// Cache video metadata for 1 hour
 const videoCache = new NodeCache({ stdTTL: 3600 });
-
-// Add basic agent options to prevent 403s
-const agentOptions = {
-    requestOptions: {
-        headers: {
-            // Common User-Agent to mimic a real browser
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        }
-    }
-};
 
 const getVideoInfo = async (req, res, next) => {
     try {
         const { url } = req.body;
-        if (!url || !ytdl.validateURL(url)) {
-            return res.status(400).json({ error: 'URL ไม่ถูกต้อง (Invalid URL)' });
+        if (!url) {
+            return res.status(400).json({ error: 'URL is required' });
         }
 
         // Check Cache
@@ -28,16 +20,21 @@ const getVideoInfo = async (req, res, next) => {
             return res.json(cachedData);
         }
 
-        const info = await ytdl.getInfo(url, agentOptions);
-        const format = ytdl.chooseFormat(info.formats, { quality: 'highest' });
+        // Fetch info using yt-dlp (dump-json)
+        const output = await ytDlp(url, {
+            dumpJson: true,
+            noWarnings: true,
+            noCallHome: true,
+            preferFreeFormats: true,
+            youtubeSkipDashManifest: true
+        });
 
-        // Extract relevant info
         const videoData = {
-            title: info.videoDetails.title,
-            thumbnail: info.videoDetails.thumbnails[info.videoDetails.thumbnails.length - 1].url, // Highest res
-            duration: convertDuration(info.videoDetails.lengthSeconds),
-            author: info.videoDetails.author.name,
-            formats: ['mp3', 'mp4'] // Simple flag for UI
+            title: output.title,
+            thumbnail: output.thumbnail,
+            duration: convertDuration(output.duration),
+            author: output.uploader,
+            formats: ['mp3', 'mp4']
         };
 
         // Save to Cache
@@ -46,35 +43,43 @@ const getVideoInfo = async (req, res, next) => {
         res.json(videoData);
     } catch (error) {
         console.error('Info Error:', error);
-        next(new Error(`YouTube Error: ${error.message}`));
+        next(new Error('Failed to fetch video info. It might be restricted or private.'));
     }
 };
 
 const downloadVideo = async (req, res, next) => {
     try {
         const { url, format } = req.query;
-        if (!url || !ytdl.validateURL(url)) {
-            return res.status(400).send('Invalid URL');
-        }
+        if (!url) return res.status(400).send('Invalid URL');
 
-        const info = await ytdl.getInfo(url, agentOptions);
-        const title = info.videoDetails.title.replace(/[^\w\s-]/g, ''); // Sanitize filename
+        // Get basic info for filename
+        const output = await ytDlp(url, { dumpJson: true, noWarnings: true });
+        const title = (output.title || 'video').replace(/[^\w\s-]/g, '');
 
+        res.header('Content-Disposition', `attachment; filename="${title}.${format}"`);
+
+        // Stream the content directly to response
         if (format === 'mp3') {
-            res.header('Content-Disposition', `attachment; filename="${title}.mp3"`);
-            ytdl(url, { ...agentOptions, quality: 'highestaudio', filter: 'audioonly' }).pipe(res);
+            // Audio Stream
+            const process = ytDlp.exec(url, {
+                extractAudio: true,
+                audioFormat: 'mp3',
+                output: '-' // Standard Output
+            });
+            process.stdout.pipe(res);
         } else {
-            // MP4 Default
-            res.header('Content-Disposition', `attachment; filename="${title}.mp4"`);
-            ytdl(url, { ...agentOptions, quality: 'highest', filter: 'audioandvideo' }).pipe(res);
+            // Video Stream (Best MP4)
+            const process = ytDlp.exec(url, {
+                format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+                output: '-'
+            });
+            process.stdout.pipe(res);
         }
+
     } catch (error) {
         console.error('Download Error:', error);
-        // If headers sent, end stream, else send json
         if (!res.headersSent) {
-            res.status(500).send('Download Failed: ' + error.message);
-        } else {
-            res.end();
+            res.status(500).send('Download Failed');
         }
     }
 };
