@@ -27,7 +27,8 @@ const runYtDlp = (url, args = []) => {
             '--skip-download',
             '--geo-bypass',
             // Force IPv4
-            '--force-ipv4'
+            '--force-ipv4',
+            '-f', 'best'
         ];
 
         // Strategy 1: Use Cookies if available (Best)
