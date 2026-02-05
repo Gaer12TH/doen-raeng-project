@@ -6,13 +6,16 @@ WORKDIR /app
 RUN apk add --no-cache python3 py3-pip ffmpeg && \
     pip3 install yt-dlp --break-system-packages
 
-# Copy package files first for caching
+# Copy package files (works from either backend/ or root context)
 COPY package*.json ./
+COPY *.js ./
+COPY routes/ ./routes/
+COPY controllers/ ./controllers/
 
 # Install dependencies
-RUN npm install --production
+RUN npm install --omit=dev
 
-# Copy app source
+# Copy remaining files (cookies, etc.)
 COPY . .
 
 # Expose port
