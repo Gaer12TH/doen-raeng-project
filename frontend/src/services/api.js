@@ -21,6 +21,12 @@ export const getVideoInfo = async (url) => {
     }
 };
 
-export const getDownloadUrl = (url, format) => {
-    return `${API_URL}/download?url=${encodeURIComponent(url)}&format=${format}`;
+export const getDownloadUrl = (url, format, type = 'video', quality = 'best') => {
+    const params = new URLSearchParams({
+        url,
+        format,
+        type,
+        quality
+    });
+    return `${API_URL}/download?${params.toString()}`;
 };

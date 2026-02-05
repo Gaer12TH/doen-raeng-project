@@ -31,12 +31,12 @@ function App() {
     }
   };
 
-  const handleDownload = async (format) => {
+  const handleDownload = async (format, type, quality) => {
     if (!videoInfo) return;
     setDownloading(true);
 
     try {
-      const downloadUrl = getDownloadUrl(url, format);
+      const downloadUrl = getDownloadUrl(url, format, type, quality);
       // Create a temporary link to trigger download
       const link = document.createElement('a');
       link.href = downloadUrl;
@@ -100,6 +100,8 @@ function App() {
             <DownloadButtons
               onDownload={handleDownload}
               isDownloading={downloading}
+              resolutions={videoInfo.resolutions}
+              audioBitrates={videoInfo.audioBitrates}
             />
           </div>
         )}

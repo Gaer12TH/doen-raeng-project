@@ -148,7 +148,13 @@ const getVideoInfo = async (req, res) => {
             thumbnail: info.thumbnail,
             duration: convertDuration(info.duration),
             author: info.uploader,
-            formats: ['mp3', 'mp4']
+            formats: ['mp3', 'mp4'],
+            resolutions: [...new Set(
+                (info.formats || [])
+                    .filter(f => f.height && f.vcodec !== 'none')
+                    .map(f => f.height)
+            )].sort((a, b) => b - a),
+            audioBitrates: [320, 256, 192, 128] // Standard MP3 qualities
         };
 
         videoCache.set(url, videoData);
@@ -162,7 +168,7 @@ const getVideoInfo = async (req, res) => {
 
 const downloadVideo = async (req, res) => {
     try {
-        const { url, format } = req.query;
+        const { url, format, quality, type } = req.query;
         if (!url) return res.status(400).send('Invalid URL');
 
         // 1. Resolve Info & Best Strategy FIRST
@@ -191,11 +197,22 @@ const downloadVideo = async (req, res) => {
             ...workingStrategyArgs
         ];
 
-        if (format === 'mp3') {
-            downloadArgs.push('--extract-audio', '--audio-format', 'mp3');
+        // 3. Handle Quality/Format Logic
+        if (type === 'audio') {
+            downloadArgs.push('--extract-audio', '--audio-format', format);
+            if (quality && quality !== 'best') {
+                downloadArgs.push('--audio-quality', `${quality}K`);
+            }
         } else {
-            // Flexible format selection
-            downloadArgs.push('--format', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best');
+            // Video Mode
+            if (quality && quality !== 'best') {
+                // Try to get specific height, fallback to best if that height fails (though UI should prevent this)
+                downloadArgs.push('--format', `bestvideo[height=${quality}]+bestaudio/best[height=${quality}]/best`);
+            } else {
+                downloadArgs.push('--format', 'bestvideo+bestaudio/best');
+            }
+            // Ensure output container
+            downloadArgs.push('--merge-output-format', format);
         }
 
         const process = spawn('yt-dlp', downloadArgs);
