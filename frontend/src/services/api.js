@@ -1,4 +1,8 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+// Auto-detect: localhost for development, Render for production
+const API_URL = import.meta.env.VITE_API_URL ||
+    (window.location.hostname === 'localhost'
+        ? 'http://localhost:3000/api'
+        : 'https://doen-raeng-project.onrender.com/api');
 
 export const getVideoInfo = async (url) => {
     try {
