@@ -8,6 +8,16 @@ const videoCache = new NodeCache({ stdTTL: 3600 });
 
 // Handle Cookies
 const cookiePath = path.join(__dirname, '../cookies.txt');
+
+// Debug: Check if cookies file exists
+if (fs.existsSync(cookiePath)) {
+    const stats = fs.statSync(cookiePath);
+    console.log(`✅ Cookies file found: ${cookiePath} (${stats.size} bytes)`);
+} else {
+    console.log('⚠️ Cookies file NOT found at:', cookiePath);
+}
+
+// Override with env var if provided
 if (process.env.YOUTUBE_COOKIES) {
     try {
         fs.writeFileSync(cookiePath, process.env.YOUTUBE_COOKIES);
